@@ -54,22 +54,25 @@
   }
   #layerA{ z-index:1; }
   #layerB{ z-index:2; }
-  .layer img{
+  .layer img,
+  .timeStack img{
     width:100%; height:100%; object-fit:contain;
     transform:translateZ(0);
     display:block;
   }
-  #imgA, #imgB, #timeImgA, #timeImgB { transition: opacity .28s ease; }
+  #imgA, #imgB { transition: opacity .2s linear; }
+
   .badge{
     position:absolute; top:10px; background:rgba(0,0,0,.55); color:#fff;
     border:1px solid rgba(255,255,255,.12); border-radius:10px; font-size:12px; padding:6px 8px;
     max-width:calc(100% - 20px);
     white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+    z-index:10;
   }
   .badge.left{left:10px}
   .badge.right{right:10px}
 
-  .track{position:absolute; inset:0; pointer-events:none; display:none; z-index:5}
+  .track{position:absolute; inset:0; pointer-events:none; display:none; z-index:20}
   .divider{position:absolute; top:0; bottom:0; width:2px; background:rgba(255,255,255,.96); left:50%}
   .handle{
     position:absolute; top:50%; left:50%; transform:translate(-50%,-50%);
@@ -85,6 +88,31 @@
 
   .rangeRow{display:flex; align-items:center; gap:10px}
   .rangeRow input[type=range]{flex:1; height:36px}
+
+  .captionBar{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:10px;
+    margin-top:10px;
+  }
+  .captionCard{
+    background:var(--panel);
+    border:1px solid var(--border);
+    border-radius:12px;
+    padding:10px 12px;
+    min-height:64px;
+  }
+  .captionCard .capLabel{
+    font-size:11px;
+    color:var(--muted);
+    margin-bottom:2px;
+  }
+  .captionCard .capMain{
+    font-size:14px;
+    font-weight:600;
+    color:var(--fg);
+    line-height:1.4;
+  }
 
   .timeSection{
     margin-top:24px;
@@ -115,9 +143,43 @@
     line-height:1.4;
   }
 
+  .timeViewer{
+    position:relative; width:100%; height:100%;
+    user-select:none; touch-action:none; background:#0a0e13;
+  }
+  .timeStack{
+    position:absolute; inset:0;
+  }
+  .timeStack img{
+    position:absolute; inset:0;
+    opacity:0;
+    transition: opacity .08s linear;
+    pointer-events:none;
+  }
+
+  .timeCaption{
+    margin-top:10px;
+    background:var(--panel);
+    border:1px solid var(--border);
+    border-radius:12px;
+    padding:10px 12px;
+  }
+  .timeCaption .capLabel{
+    font-size:11px;
+    color:var(--muted);
+    margin-bottom:2px;
+  }
+  .timeCaption .capMain{
+    font-size:14px;
+    font-weight:600;
+    color:var(--fg);
+    line-height:1.4;
+  }
+
   @media (max-width: 640px){
     .grid{grid-template-columns:1fr}
     .rangeRow{flex-wrap:wrap}
+    .captionBar{grid-template-columns:1fr}
     .badge{
       font-size:11px;
       padding:5px 7px;
@@ -189,21 +251,32 @@
       </div>
     </div>
 
+    <div class="captionBar">
+      <div class="captionCard">
+        <div class="capLabel">左のキャプション</div>
+        <div class="capMain" id="leftCaption">-</div>
+      </div>
+      <div class="captionCard">
+        <div class="capLabel">右のキャプション</div>
+        <div class="capMain" id="rightCaption">-</div>
+      </div>
+    </div>
+
     <section class="timeSection">
       <h2>時間バーで変化を見る</h2>
       <p>バーを左から右に動かすと、古い写真から新しい写真へ順に滑らかに切り替わります。</p>
 
       <div class="viewerShell" id="timeViewerShell">
-        <div class="viewer" id="timeViewer">
-          <div class="layer" style="z-index:1;">
-            <img id="timeImgA" alt="時間バー比較：下地画像">
-            <div class="badge left" id="timeBadgeA"></div>
-          </div>
-          <div class="layer" style="z-index:2;">
-            <img id="timeImgB" alt="時間バー比較：重ね画像" style="opacity:0">
-            <div class="badge right" id="timeBadgeB"></div>
-          </div>
+        <div class="timeViewer" id="timeViewer">
+          <div class="timeStack" id="timeStack"></div>
+          <div class="badge left" id="timeBadgeA">-</div>
+          <div class="badge right" id="timeBadgeB">-</div>
         </div>
+      </div>
+
+      <div class="timeCaption">
+        <div class="capLabel">時間バーの現在位置</div>
+        <div class="capMain" id="timeCaption">-</div>
       </div>
 
       <div class="rangeRow" style="margin-top:10px">
@@ -217,19 +290,36 @@
 </div>
 
 <script>
-/* ==== 画像リスト：同じフォルダにこの5枚を置く想定 ==== */
 const IMAGES = [
-  "20250804_Tsukiji.JPG",
-  "20251007_Tsukiji.JPG",
-  "20251203_Tsukiji.JPG",
-  "20260210_Tsukiji.JPG",
-  "20260408_Tsukiji.JPG"
+  {
+    file: "20250804_Tsukiji.JPG",
+    title: "2025-08-04 築地",
+    caption: "2025年8月4日の築地"
+  },
+  {
+    file: "20251007_Tsukiji.JPG",
+    title: "2025-10-07 築地",
+    caption: "2025年10月7日の築地"
+  },
+  {
+    file: "20251203_Tsukiji.JPG",
+    title: "2025-12-03 築地",
+    caption: "2025年12月3日の築地"
+  },
+  {
+    file: "20260210_Tsukiji.JPG",
+    title: "2026-02-10 築地",
+    caption: "2026年2月10日の築地"
+  },
+  {
+    file: "20260408_Tsukiji.JPG",
+    title: "2026-04-08 築地",
+    caption: "2026年4月8日の築地"
+  }
 ];
 
-/* デフォルト：左=最も古い 右=最新 */
 const DEFAULT_LEFT  = "20250804_Tsukiji.JPG";
 const DEFAULT_RIGHT = "20260408_Tsukiji.JPG";
-/* =============================================== */
 
 const $ = id => document.getElementById(id);
 const leftSel = $('leftSel');
@@ -251,15 +341,17 @@ const cutPct = $('cutPct');
 const modeLabel = $('modeLabel');
 const leftLabel = $('leftLabel');
 const rightLabel = $('rightLabel');
+const leftCaption = $('leftCaption');
+const rightCaption = $('rightCaption');
 const track = $('track');
 const divider = $('divider');
 const handle = $('handle');
 
 const timeViewerShell = $('timeViewerShell');
-const timeImgA = $('timeImgA');
-const timeImgB = $('timeImgB');
+const timeStack = $('timeStack');
 const timeBadgeA = $('timeBadgeA');
 const timeBadgeB = $('timeBadgeB');
+const timeCaption = $('timeCaption');
 const timeRange = $('timeRange');
 const timePct = $('timePct');
 const timeTicks = $('timeTicks');
@@ -268,6 +360,7 @@ let mode = 'fade';
 let dragging = false;
 let ratio = 16 / 9;
 let pointerId = null;
+let timeImages = [];
 
 const clamp = (n, min, max) => Math.max(min, Math.min(max, n));
 
@@ -280,17 +373,15 @@ function ymdString(fn){
   return p ? `${p.y}-${p.m}-${p.d}` : null;
 }
 function labelFromFilename(fn){
+  const item = IMAGES.find(v => v.file === fn);
+  if(item) return item.title;
   const y = ymdString(fn);
-  if(!y) return fn.replace(/\.[^.]+$/, '');
-  const rest = fn.replace(/\.[^.]+$/, '');
-  const idx = rest.search(/\d{4}[_-]?\d{2}[_-]?\d{2}/);
-  let place = '';
-  if(idx >= 0){
-    const matched = rest.match(/\d{4}[_-]?\d{2}[_-]?\d{2}/);
-    place = rest.slice(idx + (matched ? matched[0].length : 8));
-  }
-  place = place.replace(/^[_-]+/, '');
-  return place ? `${y} ${place}` : y;
+  return y || fn.replace(/\.[^.]+$/, '');
+}
+function captionFromFilename(fn){
+  const item = IMAGES.find(v => v.file === fn);
+  if(item) return item.caption;
+  return labelFromFilename(fn);
 }
 function isOlder(a, b){
   const A = ymdString(a), B = ymdString(b);
@@ -304,10 +395,10 @@ function preload(src){
 function populate(){
   [leftSel, rightSel].forEach(sel => {
     sel.innerHTML = '';
-    IMAGES.forEach(fn => {
+    IMAGES.forEach(item => {
       const o = document.createElement('option');
-      o.value = fn;
-      o.textContent = labelFromFilename(fn);
+      o.value = item.file;
+      o.textContent = item.title;
       sel.appendChild(o);
     });
   });
@@ -325,6 +416,8 @@ function enforceChronology(){
   }
   leftLabel.textContent = labelFromFilename(leftSel.value);
   rightLabel.textContent = labelFromFilename(rightSel.value);
+  leftCaption.textContent = captionFromFilename(leftSel.value);
+  rightCaption.textContent = captionFromFilename(rightSel.value);
   loadImages();
 }
 
@@ -354,11 +447,14 @@ function loadImages(){
 
   const tempA = new Image();
   const tempB = new Image();
-
   let loaded = 0;
+  let finished = false;
+
   const onDone = () => {
+    if(finished) return;
     loaded += 1;
     if(loaded < 2) return;
+    finished = true;
 
     const ra = tempA.naturalWidth / tempA.naturalHeight;
     const rb = tempB.naturalWidth / tempB.naturalHeight;
@@ -438,7 +534,6 @@ function setFade(v){
   const p = clamp(Number(v), 0, 100);
   fadeRange.value = p;
   fadePct.textContent = p + '%';
-
   imgB.style.clipPath = 'none';
   imgA.style.opacity = '1';
   imgB.style.opacity = (p / 100).toString();
@@ -448,10 +543,8 @@ function setCut(v){
   const p = clamp(Number(v), 0, 100);
   cutRange.value = p;
   cutPct.textContent = p + '%';
-
   imgA.style.opacity = '1';
   imgB.style.opacity = '1';
-
   const x = p.toFixed(2);
   imgB.style.clipPath = `inset(0 ${100 - x}% 0 0)`;
   divider.style.left = x + '%';
@@ -512,46 +605,41 @@ window.addEventListener('keydown', e => {
     setFade(Number(fadeRange.value) + (e.key === 'ArrowRight' ? step : -step));
   }else if(mode === 'cut' && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')){
     setCut(Number(cutRange.value) + (e.key === 'ArrowRight' ? step : -step));
-  }else if(e.key === 'f' || e.key === 'F'){
-    if(mode === 'fade'){
-      const next = (Number(fadeRange.value) < 50) ? 100 : 0;
-      setFade(next);
-    }
   }
 });
 
 const TIME_ORDER = [...IMAGES].sort((a, b) => {
-  const A = ymdString(a) || '';
-  const B = ymdString(b) || '';
+  const A = ymdString(a.file) || '';
+  const B = ymdString(b.file) || '';
   return A.localeCompare(B);
 });
 
 function renderTicks(){
   timeTicks.innerHTML = '';
-  TIME_ORDER.forEach(file => {
+  TIME_ORDER.forEach(item => {
     const span = document.createElement('span');
-    span.textContent = labelFromFilename(file);
+    span.textContent = item.title;
     timeTicks.appendChild(span);
   });
 }
 
 function initTimeViewer(){
-  if(TIME_ORDER.length < 2) return;
+  timeStack.innerHTML = '';
+  timeImages = [];
 
-  const first = TIME_ORDER[0];
-  const second = TIME_ORDER[1];
+  TIME_ORDER.forEach((item, index) => {
+    const img = document.createElement('img');
+    img.src = item.file;
+    img.alt = `時間バー比較：${item.title}`;
+    img.dataset.index = String(index);
+    img.style.opacity = index === 0 ? '1' : '0';
+    timeStack.appendChild(img);
+    timeImages.push(img);
+  });
 
-  timeImgA.src = first;
-  timeImgB.src = second;
-  timeImgA.dataset.file = first;
-  timeImgB.dataset.file = second;
-
-  timeImgA.alt = `時間バー比較：${labelFromFilename(first)}`;
-  timeImgB.alt = `時間バー比較：${labelFromFilename(second)}`;
-  timeBadgeA.textContent = labelFromFilename(first);
-  timeBadgeB.textContent = labelFromFilename(second);
-  timeImgA.style.opacity = '1';
-  timeImgB.style.opacity = '0';
+  timeBadgeA.textContent = TIME_ORDER[0]?.title || '-';
+  timeBadgeB.textContent = TIME_ORDER[1]?.title || TIME_ORDER[0]?.title || '-';
+  timeCaption.textContent = TIME_ORDER[0]?.caption || '-';
 
   renderTicks();
 }
@@ -568,26 +656,32 @@ function updateTimeViewer(v){
   let index = Math.floor(raw);
 
   if(index >= segmentCount) index = segmentCount - 1;
-
   const local = raw - index;
+
+  timeImages.forEach((img, i) => {
+    let opacity = 0;
+    if(i < index){
+      opacity = 0;
+    }else if(i === index){
+      opacity = 1 - local;
+    }else if(i === index + 1){
+      opacity = local;
+    }else{
+      opacity = 0;
+    }
+    img.style.opacity = opacity.toFixed(4);
+  });
+
   const base = TIME_ORDER[index];
   const over = TIME_ORDER[index + 1];
+  timeBadgeA.textContent = base.title;
+  timeBadgeB.textContent = over.title;
 
-  if(timeImgA.dataset.file !== base){
-    timeImgA.src = base;
-    timeImgA.dataset.file = base;
-    timeImgA.alt = `時間バー比較：${labelFromFilename(base)}`;
-    timeBadgeA.textContent = labelFromFilename(base);
+  if(local < 0.5){
+    timeCaption.textContent = base.caption;
+  }else{
+    timeCaption.textContent = over.caption;
   }
-  if(timeImgB.dataset.file !== over){
-    timeImgB.src = over;
-    timeImgB.dataset.file = over;
-    timeImgB.alt = `時間バー比較：${labelFromFilename(over)}`;
-    timeBadgeB.textContent = labelFromFilename(over);
-  }
-
-  timeImgA.style.opacity = '1';
-  timeImgB.style.opacity = local.toFixed(3);
 }
 
 timeRange.addEventListener('input', e => updateTimeViewer(e.target.value));
@@ -598,7 +692,7 @@ window.addEventListener('resize', layoutViewer);
 populate();
 setMode('fade');
 setFade(0);
-IMAGES.forEach(preload);
+IMAGES.forEach(item => preload(item.file));
 layoutViewer();
 initTimeViewer();
 updateTimeViewer(0);
